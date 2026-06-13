@@ -11,6 +11,7 @@ Describe your API once in a `blast.config.json` file, then hit every endpoint wi
 - **Request chaining** — extract values from responses (e.g. `data.access_token`) and reuse them in later requests as `{{access_token}}`
 - **Status assertions** — declare the status code each endpoint should return; mismatches are reported as failures
 - **Latency reporting** — per-request latency in milliseconds
+- **Database seeding** — tag endpoints with `"seed"` and run `blast seed` to populate your database with N iterations of fake data, with configurable concurrency
 - **CI friendly** — non-zero exit code when any endpoint fails, so it slots straight into a pipeline
 
 ## Installation
@@ -34,6 +35,9 @@ blast validate
 
 # 3. Hit every endpoint once and verify status codes
 blast check
+
+# 4. Seed the database with 50 fake records, 5 at a time
+blast seed --count 50 --concurrency 5
 ```
 
 Example `check` output:
@@ -46,6 +50,18 @@ Example `check` output:
   3/3 passed
 ```
 
+Example `seed` output:
+
+```
+seeding 10 iterations × 2 endpoints (concurrency: 1)
+
+  Iterations:      10
+  Passed:          10
+  Total requests:  20
+
+all iterations passed
+```
+
 ## Commands
 
 | Command | Description |
@@ -53,8 +69,16 @@ Example `check` output:
 | `blast init [path]` | Create a starter `blast.config.json` in the given directory (default: current directory) |
 | `blast check` | Hit every endpoint once, verify status codes, and report latency |
 | `blast validate` | Validate `blast.config.json` and report any issues |
+| `blast seed` | Run all endpoints tagged `"seed"` N times to populate a database with fake data |
 
 All commands accept `--config <path>` to point at a different config location.
+
+### `blast seed` options
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--count` | `10` | Number of seeding iterations to run |
+| `-j` / `--concurrency` | `1` | Maximum number of iterations running in parallel |
 
 ## Configuration
 
@@ -119,6 +143,7 @@ A `blast.config.json` looks like this:
 | `body` | no | JSON request body; supports `{{...}}` placeholders |
 | `expect_status` | no | Expected status code; if omitted, any status below 500 passes |
 | `extract` | no | Map of `variable name → dot path` to pull values out of the JSON response |
+| `tags` | no | List of string tags used to select which endpoints a command targets (see [Tags](#tags)) |
 
 ### Fake data placeholders
 
@@ -135,6 +160,25 @@ Use these anywhere in headers or request bodies:
 | `{{fake.company}}` | Company name |
 | `{{fake.city}}` / `{{fake.country}}` | Location names |
 | `{{fake.uuid}}` | Random UUID v4 |
+
+### Tags
+
+Tags let you group endpoints so different commands target different subsets.
+
+```json
+{
+  "name": "register user",
+  "method": "POST",
+  "path": "/api/v1/auth/register",
+  "body": { "email": "{{fake.email}}", "password": "{{fake.password}}" },
+  "expect_status": 201,
+  "tags": ["seed"]
+}
+```
+
+- `blast seed` runs only endpoints that include the `"seed"` tag.
+- If **no** endpoint in the config has any tags, `blast seed` falls back to running all endpoints.
+- An endpoint can carry multiple tags (`["check", "seed"]`) and will be included whenever any of its tags match.
 
 ### Request chaining
 
