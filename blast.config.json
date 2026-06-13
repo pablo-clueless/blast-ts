@@ -1,6 +1,6 @@
 {
   "base_url": "http://localhost:3000/",
-  "header": {
+  "headers": {
     "Content-Type": "application/json"
   },
   "endpoints": [
@@ -11,7 +11,11 @@
       "headers": null,
       "body": null,
       "expect_status": 200,
-      "extract": null
+      "extract": null,
+      "tags": [
+        "check",
+        "seed"
+      ]
     },
     {
       "name": "register user",
@@ -23,7 +27,8 @@
         "password": "{{fake.password}}"
       },
       "expect_status": 201,
-      "extract": null
+      "extract": null,
+      "tags": null
     },
     {
       "name": "login",
@@ -37,7 +42,11 @@
       "expect_status": 200,
       "extract": {
         "access_token": "data.access_token"
-      }
+      },
+      "tags": [
+        "check",
+        "seed"
+      ]
     }
   ]
 }

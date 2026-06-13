@@ -3,7 +3,7 @@ use std::{collections::HashMap, fs, path::{Path, PathBuf}};
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone )]
 pub struct BlastConfig {
     pub base_url:String,
     pub headers: Option<HashMap<String, String>>,
@@ -19,6 +19,7 @@ pub struct Endpoint {
     pub body:          Option<serde_json::Value>,
     pub expect_status: Option<u16>,
     pub extract:       Option<HashMap<String, String>>,
+    pub tags:          Option<Vec<String>>
 }
 
 pub const CONFIG_FILENAME:&str = "blast.config.json";
@@ -93,11 +94,11 @@ impl BlastConfig {
         Ok(config)
     }
 
-    pub fn load_from_cwd() -> Result<Self> {
-        let cwd = std::env::current_dir()
-            .context("could not determine current directory")?;
-        Self::load(&cwd)
-    }
+    // pub fn load_from_cwd() -> Result<Self> {
+    //     let cwd = std::env::current_dir()
+    //         .context("could not determine current directory")?;
+    //     Self::load(&cwd)
+    // }
 
     fn template() -> Self {
         Self { 
@@ -115,6 +116,7 @@ impl BlastConfig {
                     body:          None,
                     expect_status: Some(200),
                     extract:       None,
+                    tags:          Some(vec!["check".to_string(), "seed".to_string() ])
                 },
                 Endpoint {
                     name:   "register user".to_string(),
@@ -127,6 +129,7 @@ impl BlastConfig {
                     })),
                     expect_status: Some(201),
                     extract:       None,
+                    tags:          None,
                 },
                 Endpoint {
                     name:   "login".to_string(),
@@ -141,6 +144,7 @@ impl BlastConfig {
                     extract: Some(HashMap::from([
                         ("access_token".to_string(), "data.access_token".to_string()),
                     ])),
+                    tags:   Some(vec![String::from("check"), String::from("seed")])
                 }
             ]
         }
@@ -179,5 +183,25 @@ impl BlastConfig {
         }
         
         Ok(())
+    }
+
+
+    pub fn endpoint_for(&self, tag:&str) -> Vec<&Endpoint>{
+        let have_any_tags = self.endpoints
+            .iter()
+            .any(|e| e.tags.is_some());
+
+        if !have_any_tags {
+            return self.endpoints.iter().collect()
+        }
+
+        self.endpoints.iter()
+            .filter(
+                |e| {
+                    e.tags.as_ref().map(
+                        |tags| tags.iter().any(|t| t == tag)
+                    ).unwrap_or(false)
+                }
+            ).collect()
     }
 }
