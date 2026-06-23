@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs, path::{Path, PathBuf}};
-use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
+use crate::error::BlastError;
 use crate::{extractor, runner};
 
 #[derive(Debug, Deserialize, Serialize, Clone )]
@@ -27,82 +27,72 @@ pub const CONFIG_FILENAME:&str = "blast.config.json";
 
 impl BlastConfig {
 
-    pub fn validate_path(path:&Path) -> Result<PathBuf>{
+    pub fn validate_path(path:&Path) -> Result<PathBuf, BlastError>{
         let absolute = fs::canonicalize(path)
-            .with_context(||format!(
-                "directory doesn't exist {}",
+            .map_err(|e| BlastError::Config(format!(
+                "directory doesn't exist {}: {e}",
                 path.display()
-        ))?;
-        
+            )))?;
+
         if !absolute.is_dir() {
-            anyhow::bail!(
+            return Err(BlastError::Config(format!(
                 "{} is not a directory",
                 path.display()
-            )
+            )));
         }
         Ok(absolute.join(CONFIG_FILENAME))
     }
 
-    pub fn create(path:&Path) -> Result<PathBuf> {
+    pub fn create(path:&Path) -> Result<PathBuf, BlastError> {
         let config_path = Self::validate_path(path)?;
 
         if config_path.exists() {
-            anyhow::bail!(
+            return Err(BlastError::Config(format!(
                 "{} already exists — delete it first to reinitialise",
                 config_path.display()
-            )
+            )));
         }
 
-        let contents = serde_json::to_string_pretty(&Self::template()).with_context(
-            ||format!(
-                "failed to serialized default config"
-            )
-        )?;
-        
-        fs::write(&config_path, contents).with_context(
-            ||format!(
-                "failed to write {}",
-                config_path.display()
-            )
-        )?;
+        let contents = serde_json::to_string_pretty(&Self::template())?;
+
+        fs::write(&config_path, contents).map_err(|e| BlastError::Config(format!(
+            "failed to write {}: {e}",
+            config_path.display()
+        )))?;
 
         Ok(config_path)
     }
-    
-    pub fn load(path: &Path) -> Result<Self>{
+
+    pub fn load(path: &Path) -> Result<Self, BlastError>{
         let config_path = if path.is_dir() {
             path.join(CONFIG_FILENAME)
         } else {
             path.to_path_buf()
         };
 
-        let file_content = fs::read_to_string(&config_path).with_context(
-            ||format!(
-                "failed to read file from {}",
-                path.display(),
-            )
-        )?;
+        let file_content = fs::read_to_string(&config_path).map_err(|e| BlastError::Config(format!(
+            "failed to read file from {}: {e}",
+            config_path.display()
+        )))?;
 
-        let config:Self = serde_json::from_str(&file_content).with_context(
-            ||format!(
-                "failed to deserialized the config file"
-            )
-        )?;
+        let config:Self = serde_json::from_str(&file_content).map_err(|e| BlastError::Config(format!(
+            "failed to parse the config file: {e}"
+        )))?;
 
         //checking is the value in the config are valid
         config.validate()?;
-        
+
         Ok(config)
     }
 
 
     fn template() -> Self {
-        Self { 
-            base_url: String::from("http://localhost:3000/") , 
+        Self {
+            base_url: String::from("http://localhost:3000/") ,
             headers: Some(HashMap::from([(
                 String::from("Content-Type"),
                 String::from("application/json")
-            )])), 
+            )])),
             setup: Some(
                vec![
                    Endpoint{
@@ -160,42 +150,38 @@ impl BlastConfig {
         }
     }
 
-    fn validate(&self) -> Result<()>{
+    fn validate(&self) -> Result<(), BlastError>{
         if self.base_url.is_empty() {
-            anyhow::bail!(
-                "base_url cannot be empty"
-            )
+            return Err(BlastError::Config("base_url cannot be empty".to_string()));
         };
 
         if self.endpoints.is_empty(){
-            anyhow::bail!(
-                "endpoints cannot be empty"
-            )
+            return Err(BlastError::Config("endpoints cannot be empty".to_string()));
         };
 
         for (i, ep) in self.endpoints.iter().enumerate(){
             if ep.name.is_empty() {
-                anyhow::bail!("endpoint {} is missing a name", i);
+                return Err(BlastError::Config(format!("endpoint {} is missing a name", i)));
             }
             if ep.path.is_empty() {
-                anyhow::bail!("endpoint \"{}\" is missing a path", ep.name);
+                return Err(BlastError::Config(format!("endpoint \"{}\" is missing a path", ep.name)));
             }
 
             let valid = ["POST", "GET", "PATCH", "DELETE", "PUT"];
             let method_upper = ep.method.to_uppercase();
 
             if !valid.contains(&method_upper.as_str()){
-                anyhow::bail!(
+                return Err(BlastError::Config(format!(
                     "endpoint \"{}\" has invalid method \"{}\"\nvalid: {}",
                     ep.name, ep.method, valid.join(", ")
-                )
+                )));
             }
         }
-        
+
         Ok(())
     }
 
-    pub async fn load_setup(&self, client: &reqwest::Client) -> Result<HashMap<String, String>>{
+    pub async fn load_setup(&self, client: &reqwest::Client) -> Result<HashMap<String, String>, BlastError>{
         let mut ctx = HashMap::new();
 
         let setup_endpoint = match &self.setup {
@@ -207,12 +193,12 @@ impl BlastConfig {
             let result = runner::execute(client, endpoint, &self.base_url, &ctx).await;
 
             if !result.passed {
-                anyhow::bail!(
+                return Err(BlastError::Setup(format!(
                     "setup endpoint \"{}\" failed with status {} — cannot continue\nresponse: {}",
                     endpoint.name,
                     result.actual_status,
                     result.error.unwrap_or_default()
-                )
+                )));
             };
 
             if let (Some(rules), Some(body)) = (&endpoint.extract, &result.body){

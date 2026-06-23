@@ -1,0 +1,26 @@
+{
+  "name": "@pablo-clueless/blast-win32-x64-msvc",
+  "version": "0.1.1",
+  "os": [
+    "win32"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "blast.win32-x64-msvc.node",
+  "files": [
+    "blast.win32-x64-msvc.node"
+  ],
+  "description": "Fast config-driven API load tester — TypeScript bindings for Blast",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Walon-Foundation/blast.git"
+  }
+}

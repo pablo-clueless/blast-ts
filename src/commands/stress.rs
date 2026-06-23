@@ -1,31 +1,72 @@
 use std::{path::Path, sync::Arc, time::{Duration, Instant}};
-use anyhow::Result;
+
+use colored::Colorize;
 use reqwest::Client;
 use tokio::{sync::Mutex, task::JoinHandle};
-use crate::{config::{BlastConfig}, runner};
-use colored::Colorize;
 
-#[allow(unused)]
-struct StepResult {
-    rps: u64,
-    total: usize,
-    passed: usize,
-    failed: usize,
-    p50: u128,
-    p95: u128,
-    p99: u128,
-    error_rate: f64,
-    breaking: bool
+use crate::config::BlastConfig;
+use crate::error::BlastError;
+use crate::runner;
+
+/// Inputs for a stress run.
+pub struct StressConfig {
+    pub config:        BlastConfig,
+    pub min_rps:       u64,
+    pub max_rps:       u64,
+    pub step:          u64,
+    pub step_duration: u64,
 }
 
-pub async fn run(config_path:&Path, min_rps:u64, max_rps:u64, step:u64, step_duration:u64) -> Result<()>{
-    let config = BlastConfig::load(&config_path)?;
+/// Result of a single RPS step.
+#[derive(Debug, Clone)]
+pub struct StressStep {
+    pub rps:          u32,
+    pub requests:     u32,
+    pub success_rate: f64,
+    pub p50:          u32,
+    pub p95:          u32,
+    pub p99:          u32,
+    pub errors:       u32,
+    pub broke:        bool,
+}
+
+/// Summary of a full ramp.
+#[derive(Debug, Clone)]
+pub struct StressResult {
+    pub steps:          Vec<StressStep>,
+    pub breaking_point: Option<u32>,
+}
+
+/// Progress event emitted as the ramp runs, so the CLI can render live output
+/// without printing leaking into the lib.
+#[derive(Debug, Clone)]
+pub enum StressProgress {
+    StepStarted { rps: u32, step_secs: u32 },
+    StepFinished(StressStep),
+}
+
+/// Ramp RPS from `min_rps` to `max_rps` in `step` increments, holding each level
+/// for `step_duration` seconds, and stop early at the breaking point.
+///
+/// Pure: no printing, no `process::exit`. For live progress, use
+/// [`run_stress_with_progress`].
+pub async fn run_stress(cfg: StressConfig) -> Result<StressResult, BlastError> {
+    run_stress_with_progress(cfg, |_| {}).await
+}
+
+/// Like [`run_stress`], but invokes `on_progress` as each step starts and
+/// finishes.
+pub async fn run_stress_with_progress(
+    cfg: StressConfig,
+    on_progress: impl Fn(StressProgress),
+) -> Result<StressResult, BlastError> {
+    let StressConfig { config, min_rps, max_rps, step, step_duration } = cfg;
     let endpoints = config.endpoint_for("stress");
+
     if endpoints.is_empty() {
-        println!("{}", "no endpoints tagged \"stress\" found".yellow());
-        return Ok(());
+        return Ok(StressResult { steps: Vec::new(), breaking_point: None });
     }
-    
+
     let client = Arc::new(
         Client::builder().timeout(Duration::from_secs(30)).build()?
     );
@@ -33,29 +74,33 @@ pub async fn run(config_path:&Path, min_rps:u64, max_rps:u64, step:u64, step_dur
     let endpoints = Arc::new(
         endpoints.into_iter().cloned().collect::<Vec<_>>()
     );
-    
+
     let ctx = config.load_setup(&client).await?;
     let base_url = Arc::new(config.base_url.clone());
-    let mut step_results = Vec::<StepResult>::new();
+
+    let mut steps = Vec::<StressStep>::new();
+    let mut breaking_point = None;
     let mut current_rps = min_rps;
-    let step_duration = Duration::from_secs(step_duration);
+    let step_dur = Duration::from_secs(step_duration);
 
     while current_rps <= max_rps {
-        println!("\n -> step {current_rps} req/s for {:?}s",step_duration.as_secs());
+        on_progress(StressProgress::StepStarted {
+            rps:       current_rps as u32,
+            step_secs: step_dur.as_secs() as u32,
+        });
 
-        let interval_ms = 1000/current_rps;
+        let interval_ms = 1000 / current_rps;
         let start_time = Instant::now();
         let mut current_idx = 0;
-        
+
         let http_result = Arc::new(Mutex::new(Vec::<runner::RequestResult>::new()));
-        let mut handles:Vec<JoinHandle<()>> = Vec::new();
+        let mut handles: Vec<JoinHandle<()>> = Vec::new();
         let mut ticker = tokio::time::interval(Duration::from_millis(interval_ms));
 
         loop {
             ticker.tick().await;
-            
-            let elapsed = start_time.elapsed();
-            if elapsed >= step_duration {
+
+            if start_time.elapsed() >= step_dur {
                 break;
             }
 
@@ -73,73 +118,117 @@ pub async fn run(config_path:&Path, min_rps:u64, max_rps:u64, step:u64, step_dur
             });
 
             handles.push(handle);
-        };
+        }
 
         for handle in handles {
-            handle.await?;
-        };
+            let _ = handle.await;
+        }
 
         let result = http_result.lock().await;
-        let total = result.len();
-        let passed = result.iter().filter(|r| r.passed ).count();
+        let total  = result.len();
+        let passed = result.iter().filter(|r| r.passed).count();
         let failed = total - passed;
-        
+
         let error_rate = if total == 0 {
             0.0
         } else {
             (failed as f64 / total as f64) * 100.0
         };
-        
+        let success_rate = if total == 0 {
+            0.0
+        } else {
+            (passed as f64 / total as f64) * 100.0
+        };
+
         let mut latencies: Vec<u128> = result.iter().map(|r| r.latency_ms).collect();
         drop(result);
-        
         latencies.sort_unstable();
-        
+
         let p50 = percentile(&latencies, 50);
         let p95 = percentile(&latencies, 95);
         let p99 = percentile(&latencies, 99);
-        
-        let breaking = p99 > 500 || error_rate > 1.0;
 
-        // print step row
-        let row = format!(
-            "  {:>5} req/s   {:>6} req   {:>6.1}%   p50: {:>5}ms   p99: {:>5}ms   errors: {}",
-            current_rps, total,
-            (passed as f64 / total as f64) * 100.0,
-            p50, p99, failed
-        );
-        if breaking {
-            println!("{} {}", row.red(), "⚠".red().bold());
-        } else {
-            println!("{}", row.green());
-        }
-        
-        step_results.push(StepResult { 
-            rps: current_rps, 
-            total, 
-            passed, 
-            failed, 
-            p50, 
-            p95, 
-            p99, 
-            error_rate, 
-            breaking 
-        });
+        let broke = p99 > 500 || error_rate > 1.0;
 
-        if breaking {
-            println!(
-                "\n{}",
-                format!("⚠ breaking point at {} req/s", current_rps).red().bold()
-            );
-            println!("  p99:        {}ms", p99);
-            println!("  error rate: {:.1}%", error_rate);
+        let step_data = StressStep {
+            rps:          current_rps as u32,
+            requests:     total as u32,
+            success_rate,
+            p50:          p50 as u32,
+            p95:          p95 as u32,
+            p99:          p99 as u32,
+            errors:       failed as u32,
+            broke,
+        };
+
+        steps.push(step_data.clone());
+        on_progress(StressProgress::StepFinished(step_data));
+
+        if broke {
+            breaking_point = Some(current_rps as u32);
             break;
         }
 
         current_rps += step;
-    };
+    }
 
-    // print the summary result
+    Ok(StressResult { steps, breaking_point })
+}
+
+/// CLI entry point: run the ramp with live output, then print the summary table.
+pub async fn run(
+    config_path: &Path,
+    min_rps: u64,
+    max_rps: u64,
+    step: u64,
+    step_duration: u64,
+) -> anyhow::Result<()> {
+    let config = BlastConfig::load(config_path)?;
+
+    if config.endpoint_for("stress").is_empty() {
+        println!("{}", "no endpoints tagged \"stress\" found".yellow());
+        return Ok(());
+    }
+
+    let result = run_stress_with_progress(
+        StressConfig { config, min_rps, max_rps, step, step_duration },
+        print_progress,
+    )
+    .await?;
+
+    print_summary(&result, max_rps);
+
+    Ok(())
+}
+
+/// Render a live step event. CLI-only — never called from the lib.
+fn print_progress(event: StressProgress) {
+    match event {
+        StressProgress::StepStarted { rps, step_secs } => {
+            println!("\n -> step {rps} req/s for {step_secs}s");
+        }
+        StressProgress::StepFinished(step) => {
+            let row = format!(
+                "  {:>5} req/s   {:>6} req   {:>6.1}%   p50: {:>5}ms   p99: {:>5}ms   errors: {}",
+                step.rps, step.requests, step.success_rate, step.p50, step.p99, step.errors
+            );
+            if step.broke {
+                println!("{} {}", row.red(), "⚠".red().bold());
+                println!(
+                    "\n{}",
+                    format!("⚠ breaking point at {} req/s", step.rps).red().bold()
+                );
+                println!("  p99:        {}ms", step.p99);
+                println!("  error rate: {:.1}%", 100.0 - step.success_rate);
+            } else {
+                println!("{}", row.green());
+            }
+        }
+    }
+}
+
+/// Print the summary table and recommendation. CLI-only.
+fn print_summary(result: &StressResult, max_rps: u64) {
     println!("\n{}", "─".repeat(70));
     println!(
         "  {:<8} {:<10} {:<10} {:<8} {:<8} {:<8} {:<8}",
@@ -147,18 +236,18 @@ pub async fn run(config_path:&Path, min_rps:u64, max_rps:u64, step:u64, step_dur
     );
     println!("{}", "─".repeat(70));
 
-    for sr in &step_results {
+    for sr in &result.steps {
         let row = format!(
             "  {:<8} {:<10} {:<10} {:<8} {:<8} {:<8} {:<8}",
             sr.rps,
-            sr.total,
-            format!("{:.1}%", (sr.passed as f64 / sr.total as f64) * 100.0),
+            sr.requests,
+            format!("{:.1}%", sr.success_rate),
             format!("{}ms", sr.p50),
             format!("{}ms", sr.p95),
             format!("{}ms", sr.p99),
-            sr.failed,
+            sr.errors,
         );
-        if sr.breaking {
+        if sr.broke {
             println!("{} ⚠", row.red());
         } else {
             println!("{}", row);
@@ -166,9 +255,8 @@ pub async fn run(config_path:&Path, min_rps:u64, max_rps:u64, step:u64, step_dur
     }
     println!("{}", "─".repeat(70));
 
-    let found_breaking = step_results.iter().any(|r| r.breaking);
     println!();
-    if found_breaking {
+    if result.breaking_point.is_some() {
         println!("{}", "recommendation:".bold());
         println!("check GET /metrics on your API");
         println!(" run EXPLAIN ANALYZE on your slowest query");
@@ -178,8 +266,6 @@ pub async fn run(config_path:&Path, min_rps:u64, max_rps:u64, step:u64, step_dur
             format!("API held at {} req/s — try a higher --max-rps", max_rps).green()
         );
     }
-    
-    Ok(())
 }
 
 fn percentile(sorted: &[u128], p: usize) -> u128 {

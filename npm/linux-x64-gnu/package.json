@@ -1,0 +1,29 @@
+{
+  "name": "@pablo-clueless/blast-linux-x64-gnu",
+  "version": "0.1.1",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "blast.linux-x64-gnu.node",
+  "files": [
+    "blast.linux-x64-gnu.node"
+  ],
+  "description": "Fast config-driven API load tester — TypeScript bindings for Blast",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Walon-Foundation/blast.git"
+  },
+  "libc": [
+    "glibc"
+  ]
+}

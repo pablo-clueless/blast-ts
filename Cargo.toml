@@ -1,25 +1,6 @@
 [workspace]
 members = ["."]
 
-[workspace.metadata.dist]
-cargo-dist-version = "0.22.1"
-ci = "github"
-allow-dirty = ["ci"]
-installers = ["shell", "powershell"]
-unix-archive = ".tar.gz"
-targets = [
-  "x86_64-unknown-linux-gnu",
-  "aarch64-unknown-linux-gnu",
-  "aarch64-apple-darwin",
-  "x86_64-pc-windows-msvc",
-]
-
-[workspace.metadata.dist.github-custom-runners]
-x86_64-unknown-linux-gnu = "ubuntu-22.04"
-aarch64-unknown-linux-gnu = "ubuntu-22.04"
-aarch64-apple-darwin = "macos-14"
-x86_64-pc-windows-msvc = "windows-2022"
-
 [package]
 name = "blast"
 version = "0.1.1"
@@ -52,10 +33,6 @@ uuid = { version = "1.23.3", features = ["v4"] }
 
 [build-dependencies]
 napi-build = "2"
-
-[profile.dist]
-inherits = "release"
-lto = "thin"
 
 [[bin]]
 name = "blast"

@@ -1,12 +1,7 @@
 use std::path::PathBuf;
 use anyhow::Result;
+use blast::commands;
 use clap:: {Parser, Subcommand};
-
-mod commands;
-mod config;
-mod runner;
-mod template;
-mod extractor;
 
 #[derive(Parser, Debug)]
 #[command(version = "0.1.0", name = "blast", about = "API load tester and traffic generator")]

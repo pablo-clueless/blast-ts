@@ -1,0 +1,101 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  # Build the native addon (.node) for each supported platform on a matching
+  # runner (no cross-compilation), then hand the artifacts to the publish job.
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+          - os: macos-14
+            target: aarch64-apple-darwin
+          - os: windows-2022
+            target: x86_64-pc-windows-msvc
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Linux TLS deps
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build addon
+        run: npx napi build --platform --release --target ${{ matrix.target }}
+
+      - name: Upload addon
+        uses: actions/upload-artifact@v4
+        with:
+          name: bindings-${{ matrix.target }}
+          path: "*.node"
+          if-no-files-found: error
+
+  # Move each .node into its npm/<platform>/ dir, publish the platform packages,
+  # then publish the main package that depends on them.
+  publish:
+    name: Publish to npm
+    needs: build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      id-token: write # required for npm provenance
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download all addons
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Move addons into npm dirs
+        run: npx napi artifacts -d artifacts
+
+      - name: List npm packages
+        run: ls -R ./npm
+
+      - name: Enable npm provenance
+        run: npm config set provenance true
+
+      # Syncs versions, updates the main package's optionalDependencies, and
+      # `npm publish`es each per-platform package (each has publishConfig.access).
+      - name: Publish platform packages
+        run: npx napi prepublish -t npm --skip-gh-release
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish main package
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
