@@ -1,5 +1,5 @@
 {
-  "name": "@yourscope/blast",
+  "name": "@pablo-clueless/blast",
   "version": "0.1.1",
   "description": "Fast config-driven API load tester — TypeScript bindings for Blast",
   "main": "index.js",
@@ -36,8 +36,8 @@
     "@napi-rs/cli": "^2.18.4"
   },
   "optionalDependencies": {
-    "@yourscope/blast-linux-x64-gnu": "0.1.1",
-    "@yourscope/blast-darwin-arm64": "0.1.1",
-    "@yourscope/blast-win32-x64-msvc": "0.1.1"
+    "@pablo-clueless/blast-linux-x64-gnu": "0.1.1",
+    "@pablo-clueless/blast-darwin-arm64": "0.1.1",
+    "@pablo-clueless/blast-win32-x64-msvc": "0.1.1"
   }
 }
