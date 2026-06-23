@@ -43,7 +43,7 @@ jobs:
         run: npm ci
 
       - name: Build addon
-        run: npx napi build --platform --release --target ${{ matrix.target }}
+        run: npx napi build --platform --release --target ${{ matrix.target }} --features node --cargo-flags=--no-default-features
 
       - name: Upload addon
         uses: actions/upload-artifact@v4

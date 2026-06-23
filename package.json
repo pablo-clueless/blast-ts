@@ -32,8 +32,8 @@
     }
   },
   "scripts": {
-    "build": "napi build --platform --release",
-    "build:debug": "napi build --platform",
+    "build": "napi build --platform --release --features node --cargo-flags=--no-default-features",
+    "build:debug": "napi build --platform --features node --cargo-flags=--no-default-features",
     "test": "node -e \"console.log(require('.').version())\""
   },
   "devDependencies": {

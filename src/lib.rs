@@ -23,6 +23,9 @@ pub use commands::seed::{run_seed, SeedConfig, SeedResult};
 pub use commands::stress::{run_stress, StressConfig, StressProgress, StressResult, StressStep};
 
 // NAPI binding layer. Lives in src/napi.rs but is exposed as `napi_bindings`
-// to avoid clashing with the `napi` crate name.
+// to avoid clashing with the `napi` crate name. Only compiled under the `node`
+// feature — a plain `cargo build` (CLI binary) must not link the `napi_*`
+// symbols, which have no resolver outside a Node runtime.
+#[cfg(feature = "node")]
 #[path = "napi.rs"]
 pub mod napi_bindings;

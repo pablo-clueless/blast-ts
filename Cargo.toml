@@ -16,10 +16,19 @@ name = "blast"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
+[features]
+# `cli` builds the `blast` binary; `node` compiles the NAPI addon. They are kept
+# apart because the `#[napi]` registration symbols cannot be linked into a plain
+# executable (no Node runtime to resolve `napi_*`). `cargo build` uses the
+# default `cli`; `napi build` passes `--no-default-features --features node`.
+default = ["cli"]
+cli = []
+node = ["dep:napi", "dep:napi-derive"]
+
 [dependencies]
 anyhow = "1.0.102"
-napi = { version = "2", features = ["napi4", "async"] }
-napi-derive = "2"
+napi = { version = "2", features = ["napi4", "async"], optional = true }
+napi-derive = { version = "2", optional = true }
 clap = { version = "4.6.1", features = ["derive"] }
 colored = "3.1.1"
 fake = "5.1.0"
@@ -37,3 +46,4 @@ napi-build = "2"
 [[bin]]
 name = "blast"
 path = "src/main.rs"
+required-features = ["cli"]
