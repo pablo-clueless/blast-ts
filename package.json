@@ -1,0 +1,43 @@
+{
+  "name": "@yourscope/blast",
+  "version": "0.1.1",
+  "description": "Fast config-driven API load tester — TypeScript bindings for Blast",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Walon-Foundation/blast.git"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts"
+  ],
+  "napi": {
+    "name": "blast",
+    "triples": {
+      "defaults": false,
+      "additional": [
+        "x86_64-unknown-linux-gnu",
+        "aarch64-apple-darwin",
+        "x86_64-pc-windows-msvc"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "test": "node -e \"console.log(require('.').version())\""
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.4"
+  },
+  "optionalDependencies": {
+    "@yourscope/blast-linux-x64-gnu": "0.1.1",
+    "@yourscope/blast-darwin-arm64": "0.1.1",
+    "@yourscope/blast-win32-x64-msvc": "0.1.1"
+  }
+}
