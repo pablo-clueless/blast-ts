@@ -1,4 +1,8 @@
-use std::{path::Path, sync::Arc, time::{Duration, Instant}};
+use std::{
+    path::Path,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use colored::Colorize;
 use reqwest::Client;
@@ -10,8 +14,8 @@ use crate::runner;
 
 /// Inputs for a fixed-rate load test.
 pub struct RunConfig {
-    pub config:   BlastConfig,
-    pub rps:      u32,
+    pub config: BlastConfig,
+    pub rps: u32,
     pub duration: u64,
 }
 
@@ -19,21 +23,21 @@ pub struct RunConfig {
 #[derive(Debug, Clone)]
 pub struct RunResult {
     pub total_requests: u32,
-    pub success_rate:   f64,
-    pub p50:            u32,
-    pub p95:            u32,
-    pub p99:            u32,
-    pub p999:           u32,
-    pub duration_secs:  u32,
+    pub success_rate: f64,
+    pub p50: u32,
+    pub p95: u32,
+    pub p99: u32,
+    pub p999: u32,
+    pub duration_secs: u32,
 }
 
 /// Live snapshot emitted once per elapsed second while a run is in flight.
 #[derive(Debug, Clone)]
 pub struct RunProgress {
     pub elapsed_secs: u64,
-    pub sent:         u32,
-    pub success:      u32,
-    pub p99:          u32,
+    pub sent: u32,
+    pub success: u32,
+    pub p99: u32,
 }
 
 /// Fire requests at a fixed rate for a fixed duration and report latency stats.
@@ -50,30 +54,30 @@ pub async fn run_load_test_with_progress(
     cfg: RunConfig,
     on_progress: impl Fn(RunProgress),
 ) -> Result<RunResult, BlastError> {
-    let RunConfig { config, rps, duration } = cfg;
+    let RunConfig {
+        config,
+        rps,
+        duration,
+    } = cfg;
     let endpoints = config.endpoint_for("run");
 
     if endpoints.is_empty() {
         return Ok(RunResult {
             total_requests: 0,
-            success_rate:   0.0,
-            p50:            0,
-            p95:            0,
-            p99:            0,
-            p999:           0,
-            duration_secs:  duration as u32,
+            success_rate: 0.0,
+            p50: 0,
+            p95: 0,
+            p99: 0,
+            p999: 0,
+            duration_secs: duration as u32,
         });
     }
 
-    let client = Arc::new(
-        Client::builder().timeout(Duration::from_secs(30)).build()?
-    );
+    let client = Arc::new(Client::builder().timeout(Duration::from_secs(30)).build()?);
 
     let ctx = config.load_setup(&client).await?;
     let base_url = Arc::new(config.base_url.clone());
-    let endpoints = Arc::new(
-        endpoints.into_iter().cloned().collect::<Vec<_>>()
-    );
+    let endpoints = Arc::new(endpoints.into_iter().cloned().collect::<Vec<_>>());
 
     // timing
     let duration = Duration::from_secs(duration);
@@ -99,7 +103,7 @@ pub async fn run_load_test_with_progress(
         if elapsed_secs > last_print {
             last_print = elapsed_secs;
             let r = results.lock().await;
-            let total   = r.len();
+            let total = r.len();
             let success = r.iter().filter(|r| r.passed).count();
             let mut latencies: Vec<u128> = r.iter().map(|r| r.latency_ms).collect();
             latencies.sort_unstable();
@@ -107,9 +111,9 @@ pub async fn run_load_test_with_progress(
             drop(r);
             on_progress(RunProgress {
                 elapsed_secs,
-                sent:    total as u32,
+                sent: total as u32,
                 success: success as u32,
-                p99:     p99 as u32,
+                p99: p99 as u32,
             });
         }
 
@@ -135,8 +139,8 @@ pub async fn run_load_test_with_progress(
     }
 
     let results = results.lock().await;
-    let total   = results.len();
-    let passed  = results.iter().filter(|r| r.passed).count();
+    let total = results.len();
+    let passed = results.iter().filter(|r| r.passed).count();
     let mut latencies: Vec<u128> = results.iter().map(|r| r.latency_ms).collect();
     latencies.sort_unstable();
 
@@ -149,11 +153,11 @@ pub async fn run_load_test_with_progress(
     Ok(RunResult {
         total_requests: total as u32,
         success_rate,
-        p50:            percentile(&latencies, 50) as u32,
-        p95:            percentile(&latencies, 95) as u32,
-        p99:            percentile(&latencies, 99) as u32,
-        p999:           percentile(&latencies, 999) as u32,
-        duration_secs:  duration.as_secs() as u32,
+        p50: percentile(&latencies, 50) as u32,
+        p95: percentile(&latencies, 95) as u32,
+        p99: percentile(&latencies, 99) as u32,
+        p999: percentile(&latencies, 999) as u32,
+        duration_secs: duration.as_secs() as u32,
     })
 }
 
@@ -167,7 +171,11 @@ pub async fn run(config_path: &Path, rps: u32, duration: u64) -> anyhow::Result<
     }
 
     let result = run_load_test_with_progress(
-        RunConfig { config, rps, duration },
+        RunConfig {
+            config,
+            rps,
+            duration,
+        },
         |p| {
             println!(
                 "  elapsed: {}s   sent: {}   success: {}   p99: {}ms",

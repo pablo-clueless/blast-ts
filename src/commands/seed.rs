@@ -2,7 +2,10 @@ use std::{collections::HashMap, path::Path, sync::Arc, time::Duration};
 
 use colored::Colorize;
 use reqwest::Client;
-use tokio::{sync::{Mutex, Semaphore}, task::JoinHandle};
+use tokio::{
+    sync::{Mutex, Semaphore},
+    task::JoinHandle,
+};
 
 use crate::config::BlastConfig;
 use crate::error::BlastError;
@@ -10,22 +13,22 @@ use crate::{extractor, runner};
 
 /// Inputs for a seed run.
 pub struct SeedConfig {
-    pub config:      BlastConfig,
-    pub count:       u32,
+    pub config: BlastConfig,
+    pub count: u32,
     pub concurrency: usize,
 }
 
 /// Summary of a seed run.
 #[derive(Debug, Clone)]
 pub struct SeedResult {
-    pub iterations:     u32,
-    pub passed:         u32,
+    pub iterations: u32,
+    pub passed: u32,
     pub total_requests: u32,
 }
 
 /// One full pass over the seed endpoints.
 struct IterationResult {
-    passed:   bool,
+    passed: bool,
     requests: usize,
 }
 
@@ -34,34 +37,38 @@ struct IterationResult {
 /// Pure: no printing, no `process::exit`. Each iteration carries its own
 /// extract context so captured values flow between endpoints within a pass.
 pub async fn run_seed(cfg: SeedConfig) -> Result<SeedResult, BlastError> {
-    let SeedConfig { config, count, concurrency } = cfg;
+    let SeedConfig {
+        config,
+        count,
+        concurrency,
+    } = cfg;
     let endpoints = config.endpoint_for("seed");
 
     if endpoints.is_empty() {
-        return Ok(SeedResult { iterations: 0, passed: 0, total_requests: 0 });
+        return Ok(SeedResult {
+            iterations: 0,
+            passed: 0,
+            total_requests: 0,
+        });
     }
 
-    let client = Arc::new(
-        Client::builder().timeout(Duration::from_secs(10)).build()?
-    );
+    let client = Arc::new(Client::builder().timeout(Duration::from_secs(10)).build()?);
 
     // each task needs to own its endpoints
-    let endpoints = Arc::new(
-        endpoints.into_iter().cloned().collect::<Vec<_>>()
-    );
+    let endpoints = Arc::new(endpoints.into_iter().cloned().collect::<Vec<_>>());
 
-    let base_url  = Arc::new(config.base_url);
-    let results   = Arc::new(Mutex::new(Vec::<IterationResult>::new()));
+    let base_url = Arc::new(config.base_url);
+    let results = Arc::new(Mutex::new(Vec::<IterationResult>::new()));
     let semaphore = Arc::new(Semaphore::new(concurrency));
 
     let mut handles: Vec<JoinHandle<()>> = Vec::new();
 
     for _ in 0..count {
-        let client    = Arc::clone(&client);
-        let base_url  = Arc::clone(&base_url);
+        let client = Arc::clone(&client);
+        let base_url = Arc::clone(&base_url);
         let endpoints = Arc::clone(&endpoints);
         let semaphore = Arc::clone(&semaphore);
-        let results   = Arc::clone(&results);
+        let results = Arc::clone(&results);
 
         let handle = tokio::spawn(async move {
             let _permit = semaphore.acquire_owned().await.unwrap();
@@ -82,7 +89,7 @@ pub async fn run_seed(cfg: SeedConfig) -> Result<SeedResult, BlastError> {
             }
 
             results.lock().await.push(IterationResult {
-                passed:   iteration_passed,
+                passed: iteration_passed,
                 requests: endpoints.len(),
             });
         });
@@ -94,12 +101,16 @@ pub async fn run_seed(cfg: SeedConfig) -> Result<SeedResult, BlastError> {
         let _ = handle.await;
     }
 
-    let results        = results.lock().await;
-    let iterations     = results.len() as u32;
-    let passed         = results.iter().filter(|r| r.passed).count() as u32;
+    let results = results.lock().await;
+    let iterations = results.len() as u32;
+    let passed = results.iter().filter(|r| r.passed).count() as u32;
     let total_requests = results.iter().map(|r| r.requests).sum::<usize>() as u32;
 
-    Ok(SeedResult { iterations, passed, total_requests })
+    Ok(SeedResult {
+        iterations,
+        passed,
+        total_requests,
+    })
 }
 
 /// CLI entry point: announce the plan, run the seed, then print a summary.
@@ -108,7 +119,10 @@ pub async fn run(config_path: &Path, count: u32, concurrency: usize) -> anyhow::
 
     let endpoint_count = config.endpoint_for("seed").len();
     if endpoint_count == 0 {
-        println!("{}", "no endpoints tagged \"seed\" found in blast.config.json".yellow());
+        println!(
+            "{}",
+            "no endpoints tagged \"seed\" found in blast.config.json".yellow()
+        );
         println!("add \"tags\": [\"seed\"] to the endpoints you want to seed with");
         return Ok(());
     }
@@ -117,7 +131,12 @@ pub async fn run(config_path: &Path, count: u32, concurrency: usize) -> anyhow::
         "seeding {count} iterations × {endpoint_count} endpoints (concurrency: {concurrency})\n",
     );
 
-    let result = run_seed(SeedConfig { config, count, concurrency }).await?;
+    let result = run_seed(SeedConfig {
+        config,
+        count,
+        concurrency,
+    })
+    .await?;
 
     print_summary(&result);
 

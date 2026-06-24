@@ -1,10 +1,10 @@
 //! Blast as a library crate.
 //!
 //! This exposes Blast's internals so they can be shared by the CLI (`src/main.rs`)
-//! and the NAPI-RS bindings (`src/napi.rs`). Command modules are being refactored
-//! so the work lives in pure functions that return structured results (no stdout,
-//! no `process::exit`), with printing kept in the CLI layer. `check` is done;
-//! `run`/`seed`/`stress` are in progress.
+//! and the NAPI-RS bindings (`src/napi.rs`). Each command lives in a pure function
+//! that returns a structured result (no stdout, no `process::exit`), with printing
+//! kept in the CLI layer — `check`, `run`, `seed`, and `stress` all follow this
+//! shape and are bound for both the CLI and Node.
 
 pub mod commands;
 pub mod config;
@@ -17,10 +17,10 @@ pub use error::BlastError;
 pub use runner::RequestResult;
 
 // Pure, structured-result entry points for embedders (CLI + NAPI).
-pub use commands::check::{run_check, CheckResult};
-pub use commands::run::{run_load_test, RunConfig, RunProgress, RunResult};
-pub use commands::seed::{run_seed, SeedConfig, SeedResult};
-pub use commands::stress::{run_stress, StressConfig, StressProgress, StressResult, StressStep};
+pub use commands::check::{CheckResult, run_check};
+pub use commands::run::{RunConfig, RunProgress, RunResult, run_load_test};
+pub use commands::seed::{SeedConfig, SeedResult, run_seed};
+pub use commands::stress::{StressConfig, StressProgress, StressResult, StressStep, run_stress};
 
 // NAPI binding layer. Lives in src/napi.rs but is exposed as `napi_bindings`
 // to avoid clashing with the `napi` crate name. Only compiled under the `node`

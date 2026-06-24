@@ -14,8 +14,8 @@ use crate::runner::{self, RequestResult};
 #[derive(Debug, Clone)]
 pub struct CheckResult {
     pub results: Vec<RequestResult>,
-    pub passed:  u32,
-    pub total:   u32,
+    pub passed: u32,
+    pub total: u32,
 }
 
 /// Hit every endpoint once and collect the results.
@@ -28,7 +28,7 @@ pub async fn run_check(config: BlastConfig) -> Result<CheckResult, BlastError> {
         .timeout(std::time::Duration::from_secs(10))
         .build()?;
 
-    let mut ctx:     HashMap<String, String> = HashMap::new();
+    let mut ctx: HashMap<String, String> = HashMap::new();
     let mut results: Vec<RequestResult> = Vec::new();
 
     for endpoint in &config.endpoints {
@@ -55,9 +55,13 @@ pub async fn run_check(config: BlastConfig) -> Result<CheckResult, BlastError> {
     }
 
     let passed = results.iter().filter(|r| r.passed).count() as u32;
-    let total  = results.len() as u32;
+    let total = results.len() as u32;
 
-    Ok(CheckResult { results, passed, total })
+    Ok(CheckResult {
+        results,
+        passed,
+        total,
+    })
 }
 
 /// CLI entry point: run the check, print the report, exit non-zero on failure.
@@ -101,7 +105,10 @@ fn print_report(result: &CheckResult) {
             );
             println!(
                 "     expected {} got {}",
-                r.expected_status.map(|s| s.to_string()).unwrap_or("any".to_string()).yellow(),
+                r.expected_status
+                    .map(|s| s.to_string())
+                    .unwrap_or("any".to_string())
+                    .yellow(),
                 r.actual_status.to_string().red(),
             );
             if let Some(err) = &r.error {
@@ -115,7 +122,7 @@ fn print_report(result: &CheckResult) {
     // ── summary ─────────────────────────────────────────────────────────────
     let passed = result.passed;
     let failed = result.total - result.passed;
-    let total  = result.total;
+    let total = result.total;
 
     println!();
     if failed == 0 {

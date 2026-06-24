@@ -1,4 +1,8 @@
-use std::{path::Path, sync::Arc, time::{Duration, Instant}};
+use std::{
+    path::Path,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use colored::Colorize;
 use reqwest::Client;
@@ -10,30 +14,30 @@ use crate::runner;
 
 /// Inputs for a stress run.
 pub struct StressConfig {
-    pub config:        BlastConfig,
-    pub min_rps:       u64,
-    pub max_rps:       u64,
-    pub step:          u64,
+    pub config: BlastConfig,
+    pub min_rps: u64,
+    pub max_rps: u64,
+    pub step: u64,
     pub step_duration: u64,
 }
 
 /// Result of a single RPS step.
 #[derive(Debug, Clone)]
 pub struct StressStep {
-    pub rps:          u32,
-    pub requests:     u32,
+    pub rps: u32,
+    pub requests: u32,
     pub success_rate: f64,
-    pub p50:          u32,
-    pub p95:          u32,
-    pub p99:          u32,
-    pub errors:       u32,
-    pub broke:        bool,
+    pub p50: u32,
+    pub p95: u32,
+    pub p99: u32,
+    pub errors: u32,
+    pub broke: bool,
 }
 
 /// Summary of a full ramp.
 #[derive(Debug, Clone)]
 pub struct StressResult {
-    pub steps:          Vec<StressStep>,
+    pub steps: Vec<StressStep>,
     pub breaking_point: Option<u32>,
 }
 
@@ -60,20 +64,25 @@ pub async fn run_stress_with_progress(
     cfg: StressConfig,
     on_progress: impl Fn(StressProgress),
 ) -> Result<StressResult, BlastError> {
-    let StressConfig { config, min_rps, max_rps, step, step_duration } = cfg;
+    let StressConfig {
+        config,
+        min_rps,
+        max_rps,
+        step,
+        step_duration,
+    } = cfg;
     let endpoints = config.endpoint_for("stress");
 
     if endpoints.is_empty() {
-        return Ok(StressResult { steps: Vec::new(), breaking_point: None });
+        return Ok(StressResult {
+            steps: Vec::new(),
+            breaking_point: None,
+        });
     }
 
-    let client = Arc::new(
-        Client::builder().timeout(Duration::from_secs(30)).build()?
-    );
+    let client = Arc::new(Client::builder().timeout(Duration::from_secs(30)).build()?);
 
-    let endpoints = Arc::new(
-        endpoints.into_iter().cloned().collect::<Vec<_>>()
-    );
+    let endpoints = Arc::new(endpoints.into_iter().cloned().collect::<Vec<_>>());
 
     let ctx = config.load_setup(&client).await?;
     let base_url = Arc::new(config.base_url.clone());
@@ -85,7 +94,7 @@ pub async fn run_stress_with_progress(
 
     while current_rps <= max_rps {
         on_progress(StressProgress::StepStarted {
-            rps:       current_rps as u32,
+            rps: current_rps as u32,
             step_secs: step_dur.as_secs() as u32,
         });
 
@@ -125,7 +134,7 @@ pub async fn run_stress_with_progress(
         }
 
         let result = http_result.lock().await;
-        let total  = result.len();
+        let total = result.len();
         let passed = result.iter().filter(|r| r.passed).count();
         let failed = total - passed;
 
@@ -151,13 +160,13 @@ pub async fn run_stress_with_progress(
         let broke = p99 > 500 || error_rate > 1.0;
 
         let step_data = StressStep {
-            rps:          current_rps as u32,
-            requests:     total as u32,
+            rps: current_rps as u32,
+            requests: total as u32,
             success_rate,
-            p50:          p50 as u32,
-            p95:          p95 as u32,
-            p99:          p99 as u32,
-            errors:       failed as u32,
+            p50: p50 as u32,
+            p95: p95 as u32,
+            p99: p99 as u32,
+            errors: failed as u32,
             broke,
         };
 
@@ -172,7 +181,10 @@ pub async fn run_stress_with_progress(
         current_rps += step;
     }
 
-    Ok(StressResult { steps, breaking_point })
+    Ok(StressResult {
+        steps,
+        breaking_point,
+    })
 }
 
 /// CLI entry point: run the ramp with live output, then print the summary table.
@@ -191,7 +203,13 @@ pub async fn run(
     }
 
     let result = run_stress_with_progress(
-        StressConfig { config, min_rps, max_rps, step, step_duration },
+        StressConfig {
+            config,
+            min_rps,
+            max_rps,
+            step,
+            step_duration,
+        },
         print_progress,
     )
     .await?;
@@ -216,7 +234,9 @@ fn print_progress(event: StressProgress) {
                 println!("{} {}", row.red(), "⚠".red().bold());
                 println!(
                     "\n{}",
-                    format!("⚠ breaking point at {} req/s", step.rps).red().bold()
+                    format!("⚠ breaking point at {} req/s", step.rps)
+                        .red()
+                        .bold()
                 );
                 println!("  p99:        {}ms", step.p99);
                 println!("  error rate: {:.1}%", 100.0 - step.success_rate);
