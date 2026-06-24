@@ -310,6 +310,9 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { version } = nativeBinding
+const { check, run, seed, stress } = nativeBinding
 
-module.exports.version = version
+module.exports.check = check
+module.exports.run = run
+module.exports.seed = seed
+module.exports.stress = stress

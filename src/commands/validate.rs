@@ -1,8 +1,8 @@
 // src/commands/validate.rs
-use std::path::Path;
+use crate::config::BlastConfig;
 use anyhow::Result;
 use colored::Colorize;
-use crate::config::BlastConfig;
+use std::path::Path;
 
 pub fn run(config_path: &Path) -> Result<()> {
     print!("loading {}... ", config_path.display());
@@ -44,7 +44,10 @@ pub fn run(config_path: &Path) -> Result<()> {
             println!();
             println!("{} {}", "error:".red().bold(), e);
             println!();
-            println!("{}", "fix the issues above then run blast validate again".yellow());
+            println!(
+                "{}",
+                "fix the issues above then run blast validate again".yellow()
+            );
 
             // return error so exit code is non-zero
             // useful in CI: blast validate fails the pipeline if config is broken
