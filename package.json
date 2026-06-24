@@ -2,8 +2,8 @@
   "name": "@pablo-clueless/blast-ts",
   "version": "0.1.1",
   "description": "Fast config-driven API load tester — TypeScript bindings for Blast",
-  "main": "index.js",
-  "types": "index.d.ts",
+  "main": "blast.js",
+  "types": "blast.d.ts",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -18,6 +18,10 @@
   "files": [
     "index.js",
     "index.d.ts",
+    "validate.js",
+    "validate.d.ts",
+    "blast.js",
+    "blast.d.ts",
     "README.md"
   ],
   "napi": {
@@ -34,7 +38,8 @@
   "scripts": {
     "build": "napi build --platform --release --features node --cargo-flags=--no-default-features",
     "build:debug": "napi build --platform --features node --cargo-flags=--no-default-features",
-    "test": "node -e \"console.log(Object.keys(require('.')).sort().join(', '))\""
+    "test": "node --test test/index.ts",
+    "report": "node test/report.mts"
   },
   "devDependencies": {
     "@napi-rs/cli": "^2.18.4"
