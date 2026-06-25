@@ -1,6 +1,6 @@
 {
   "name": "@pablo-clueless/blast-win32-x64-msvc",
-  "version": "0.1.1",
+  "version": "0.1.4",
   "os": [
     "win32"
   ],
@@ -21,6 +21,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Walon-Foundation/blast.git"
+    "url": "https://github.com/pablo-clueless/blast-ts.git"
   }
 }
