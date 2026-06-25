@@ -28,7 +28,7 @@ The package ships prebuilt native binaries for **Linux x64 (gnu)**, **macOS Appl
 
 ## Quick start
 
-Create a `blast.config.json` describing your API (see [Configuration](#configuration)), then drive it from TypeScript:
+Create a `blast.config.json` describing your API (see [Configuration](#configuration)) or simply paste your OpenAPI spec, then drive it from TypeScript:
 
 ```ts
 import { check, run, seed, stress } from '@pablo-clueless/blast-ts'
@@ -68,16 +68,54 @@ check('./blast.config.json').then((health) => {
 
 ## API
 
-All four functions are asynchronous and return a `Promise`. Each loads and validates the config at `configPath`; if the file is missing or invalid, the promise rejects with an error.
+All functions are asynchronous and return a `Promise`. `check`, `run`, `seed`, and `stress` load the config at `configPath` and reject if the file is missing or invalid. `validate` never rejects — it resolves with a structured pass/fail result.
 
 | Function | Targets | Returns |
 | --- | --- | --- |
+| `validate(configPath)` | the config document | `ValidateResult` |
 | `check(configPath)` | every endpoint | `CheckResult` |
 | `seed(options)` | endpoints tagged `"seed"` | `SeedResult` |
 | `run(options)` | endpoints tagged `"run"` | `RunResult` |
 | `stress(options)` | endpoints tagged `"stress"` | `StressResult` |
 
 > If **no** endpoint in the config carries any tags, `seed`, `run`, and `stress` fall back to targeting all endpoints. See [Tags](#tags).
+
+### `validate(configPath)`
+
+A `blast.config.json` is an [OpenAPI 3.x](https://spec.openapis.org/oas/latest.html) document. `validate` checks it in two stages — first that the file is **valid JSON**, then that it is a **valid OpenAPI 3.x spec** — and resolves with a structured result instead of throwing. `stage` reports how far validation got (`read` → `json` → `openapi`).
+
+```ts
+function validate(configPath: string): Promise<ValidateResult>
+
+interface ValidateResult {
+  valid: boolean
+  stage: 'read' | 'json' | 'openapi'
+  errors: string[]          // human-readable errors; empty when valid
+  summary?: ValidateSummary // present only when valid
+}
+
+interface ValidateSummary {
+  openapi: string
+  title?: string
+  version?: string
+  pathCount: number
+  operationCount: number
+}
+```
+
+```ts
+import { validate } from '@pablo-clueless/blast-ts'
+
+const result = await validate('./blast.config.json')
+if (!result.valid) {
+  console.error(`invalid config (${result.stage}):`)
+  for (const e of result.errors) console.error(`  - ${e}`)
+  process.exit(1)
+}
+console.log(`${result.summary.title} — ${result.summary.operationCount} operations`)
+```
+
+> **Note:** `validate` does structural OpenAPI validation (required fields, version, and the shape of `paths`/operations). The runtime commands (`check`, `run`, `seed`, `stress`) still read the legacy config fields documented under [Configuration](#configuration) during the migration to OpenAPI.
 
 ### `check(configPath)`
 
@@ -192,7 +230,11 @@ The stress test stops early and reports a breaking point when p99 latency exceed
 
 ## Configuration
 
-A `blast.config.json` looks like this:
+A `blast.config.json` is an [OpenAPI 3.x](https://spec.openapis.org/oas/latest.html) document describing your API, and can be validated with [`validate`](#validateconfigpath).
+
+> **Migration note:** the runtime commands (`check`, `run`, `seed`, `stress`) currently still read the legacy fields shown below. Mapping operations from a full OpenAPI spec into the engine is in progress; until it lands, author the config with the fields documented here.
+
+The legacy format looks like this:
 
 ```json
 {
