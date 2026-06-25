@@ -100,7 +100,6 @@ jobs:
           BLAST_PASSWORD: password123
           BLAST_LOGIN_PATH: /auth/login
           BLAST_TOKEN_PATH: data.access_token
-          BLAST_PARAMS: {}
           BLAST_INCLUDE_WRITES: 1
           BLAST_TIMEOUT_MS: 10000
 
