@@ -3,7 +3,7 @@ members = ["."]
 
 [package]
 name = "blast"
-version = "0.1.4"
+version = "0.1.1"
 edition = "2024"
 description = "A fast, config-driven API load tester and traffic generator"
 repository = "https://github.com/Walon-Foundation/blast"
