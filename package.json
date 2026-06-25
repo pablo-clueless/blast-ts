@@ -1,6 +1,6 @@
 {
   "name": "@pablo-clueless/blast-ts",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Fast config-driven API load tester — TypeScript bindings for Blast",
   "main": "blast.js",
   "types": "blast.d.ts",
