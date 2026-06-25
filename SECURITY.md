@@ -14,8 +14,8 @@ Please **do not** report security vulnerabilities through public GitHub issues.
 
 Instead, report them privately via one of:
 
-- **GitHub Security Advisories** — use the ["Report a vulnerability"](https://github.com/Walon-Foundation/blast/security/advisories/new) button on the repository
-- **Email** — mohamedlaminwalonjalloh@gmail.com
+- **GitHub Security Advisories** — use the ["Report a vulnerability"](https://github.com/pablo-clueless/blast-ts/security/advisories/new) button on the repository
+- **Email** — smsnmicheal@gmail.com
 
 Include as much of the following as you can:
 
