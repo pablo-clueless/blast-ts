@@ -94,6 +94,15 @@ jobs:
         run: npx napi prepublish -t npm --skip-gh-release
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          BLAST_CONFIG: ./test/blast.config.json
+          BLAST_BASE_URL: https://cairn-go.onrender.com/v1
+          BLAST_EMAIL: tester+0620102311@cairn.test
+          BLAST_PASSWORD: password123
+          BLAST_LOGIN_PATH: /auth/login
+          BLAST_TOKEN_PATH: data.access_token
+          BLAST_PARAMS: {}
+          BLAST_INCLUDE_WRITES: 1
+          BLAST_TIMEOUT_MS: 10000
 
       - name: Publish main package
         run: npm publish --access public
