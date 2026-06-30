@@ -1,5 +1,5 @@
 {
-  "name": "@pablo-clueless/blast-win32-x64-msvc",
+  "name": "@pablo_clueless/blast-win32-x64-msvc",
   "version": "0.1.4",
   "os": [
     "win32"
