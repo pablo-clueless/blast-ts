@@ -1,7 +1,7 @@
 {
-  "name": "@pablo-clueless/blast-ts",
-  "version": "0.1.4",
-  "description": "Fast config-driven API load tester — TypeScript bindings for Blast",
+  "name": "@pablo_clueless/blast-ts",
+  "version": "0.1.5",
+  "description": "Fast config-driven API load tester \u2014 TypeScript bindings for Blast",
   "main": "blast.js",
   "types": "blast.d.ts",
   "license": "MIT",
@@ -36,7 +36,7 @@
     }
   },
   "scripts": {
-    "build": "napi build --platform --release --features node --cargo-flags=--no-default-features",
+    "build": "node api.js && napi build --platform --release --features node --cargo-flags=--no-default-features",
     "build:debug": "napi build --platform --features node --cargo-flags=--no-default-features",
     "test": "node --test test/index.ts",
     "report": "node test/report.mts"
@@ -45,8 +45,8 @@
     "@napi-rs/cli": "^2.18.4"
   },
   "optionalDependencies": {
-    "@pablo-clueless/blast-linux-x64-gnu": "0.1.4",
-    "@pablo-clueless/blast-darwin-arm64": "0.1.4",
-    "@pablo-clueless/blast-win32-x64-msvc": "0.1.4"
+    "@pablo_clueless/blast-linux-x64-gnu": "0.1.4",
+    "@pablo_clueless/blast-darwin-arm64": "0.1.4",
+    "@pablo_clueless/blast-win32-x64-msvc": "0.1.4"
   }
 }
