@@ -21,7 +21,7 @@ Describe your API once in a `blast.config.json` file, then hit every endpoint fr
 ## Installation
 
 ```sh
-npm install @pablo-clueless/blast-ts
+npm install @pablo_clueless/blast-ts
 ```
 
 The package ships prebuilt native binaries for **Linux x64 (gnu)**, **macOS Apple Silicon (arm64)**, and **Windows x64** — installing it needs no toolchain or compilation step. The correct binary for your platform is selected automatically.
@@ -31,7 +31,7 @@ The package ships prebuilt native binaries for **Linux x64 (gnu)**, **macOS Appl
 Create a `blast.config.json` describing your API (see [Configuration](#configuration)) or simply paste your OpenAPI spec, then drive it from TypeScript:
 
 ```ts
-import { check, run, seed, stress } from '@pablo-clueless/blast-ts'
+import { check, run, seed, stress } from '@pablo_clueless/blast-ts'
 
 // 1. Hit every endpoint once and verify status codes
 const health = await check('./blast.config.json')
@@ -59,7 +59,7 @@ console.log(`breaking point: ${load.breakingPoint ?? 'not reached'} req/s`)
 CommonJS works the same way:
 
 ```js
-const { check } = require('@pablo-clueless/blast-ts')
+const { check } = require('@pablo_clueless/blast-ts')
 
 check('./blast.config.json').then((health) => {
   console.log(`${health.passed}/${health.total} endpoints passed`)
@@ -104,7 +104,7 @@ interface ValidateSummary {
 ```
 
 ```ts
-import { validate } from '@pablo-clueless/blast-ts'
+import { validate } from '@pablo_clueless/blast-ts'
 
 const result = await validate('./blast.config.json')
 if (!result.valid) {
